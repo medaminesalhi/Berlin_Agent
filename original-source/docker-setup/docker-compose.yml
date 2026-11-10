@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8888/
+      - SEARXNG_INSTANCE_NAME=Local SearXNG
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+  lightpanda:
+    image: lightpanda/browser:nightly
+    container_name: lightpanda-test
+    ports:
+      - "127.0.0.1:9222:9222"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    command:
+      - /bin/lightpanda
+      - serve
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "9222"
+      - --timeout
+      - "3600"
+      - --log-level
+      - info
+      - --http-timeout
+      - "30000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9222/json/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

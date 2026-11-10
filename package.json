@@ -1,0 +1,21 @@
+{
+  "name": "heidi-berlin-stagehand-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Real browser-based Berlin Hausverwaltung research agent. Based on supplied Stagehand project.",
+  "engines": {"node": ">=20"},
+  "scripts": {
+    "start": "node src/cli.js --mode research --limit 60 --deep",
+    "berlin": "node src/cli.js --mode research --limit 60 --deep",
+    "berlin:small": "node src/cli.js --mode research --limit 12 --deep",
+    "known:real": "node src/cli.js --mode sites --input fixtures/sites_berlin.csv --limit 9 --deep",
+    "doctor": "node src/doctor.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "@browserbasehq/stagehand": "~3.7.3",
+    "zod": "^3.25.76",
+    "dotenv": "^16.6.1"
+  }
+}

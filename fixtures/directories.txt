@@ -1,0 +1,3 @@
+# Annuaire: consulter uniquement lorsque robots.txt et les conditions du site l'autorisent
+https://vdiv-bb.de/mitglieder/
+https://hausverwalter-register.de/hausverwaltung/berlin

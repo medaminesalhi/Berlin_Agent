@@ -1,0 +1,19 @@
+HEIDI SYSTEMS — VRAI AGENT WEB STAGEHAND + GROQ
+===============================================
+
+0. Ouvre ce dossier dans VS Code (Node.js 20+ requis).
+1. Terminal : npm install
+2. Copie .env.example -> .env, mets GROQ_API_KEY=ta_cle
+3. (Recherche complexe) Lance Docker Desktop, puis :
+   docker compose -f docker-searxng/docker-compose.yml up -d
+4. Diagnostic : npm run doctor
+5. Test sur 9 sites officiels : npm run known:real
+6. Recherche Berlin (12 sites) : npm run berlin:small
+7. Recherche plus large : npm run berlin
+8. Pour explorer les annuaires :
+   node src/cli.js --mode research --limit 80 --deep --directories
+
+Les donnees vont dans output/ en CSV et JSON, avec les URL sources.
+Le programme utilise Stagehand pour VRAIMENT ouvrir les pages dans Chromium.
+Les tests locaux sont passes, mais Groq/Stagehand/Internet n'ont pas ete testes ensemble ici.
+Pour les limites et erreurs, lis README.md.

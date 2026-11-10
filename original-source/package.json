@@ -1,0 +1,40 @@
+{
+  "name": "stagehand-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Lightpanda + Stagehand + NVIDIA NIM integration",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "next dev",
+    "build": "next build",
+    "next-start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@ai-sdk/azure": "^1.0.14",
+    "@assistant-ui/react": "^0.7.13",
+    "@assistant-ui/react-markdown": "^0.7.13",
+    "@browserbasehq/stagehand": "^3.0.0",
+    "@lightpanda/browser": "^1.2.0",
+    "@phukon/duckduckgo-search": "^1.1.0",
+    "ai": "^4.0.22",
+    "dotenv": "^16.4.5",
+    "jsdom": "^24.0.0",
+    "lucide-react": "^0.468.0",
+    "next": "^15.1.0",
+    "openai": "^6.33.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,33 @@
+use_default_settings: true
+
+general:
+  instance_name: "SearXNG"
+  enable_metrics: true
+
+doi_resolvers:
+  oadoi.org: 'https://oadoi.org/'
+  doi.org: 'https://doi.org/'
+  sci-hub.se: 'https://sci-hub.se/'
+  sci-hub.st: 'https://sci-hub.st/'
+  sci-hub.ru: 'https://sci-hub.ru/'
+
+default_doi_resolver: 'oadoi.org'
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "auto"
+  formats:
+    - json
+    - html
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "EmmnJFSCE92oGcidG9RH8jnVW5qJ8rT"
+  limiter: false
+  image_proxy: false
+
+ui:
+  default_theme: simple
+  query_in_title: false
