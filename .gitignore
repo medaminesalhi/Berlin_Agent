@@ -5,3 +5,11 @@ output/*
 .stagehand-cache/
 *.log
 .DS_Store
+original-source/
+legacy-original/
+backup/
+backups/
+.vscode/*
+!.vscode/extensions.json
+*.pem
+*.key
