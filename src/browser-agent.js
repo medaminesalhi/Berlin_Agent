@@ -1,7 +1,7 @@
 /**
  * Real browser module. Unlike the earlier lightweight version, this agent
  * opens pages with Stagehand/Chromium; it uses Stagehand.observe/extract/act.
- * The Groq direct client remains a robust fallback for structured extraction.
+ * OpenAI handles structured extraction; Stagehand handles live Chromium browsing.
  */
 import { clean, normalizeUrl, sleep } from './utils.js';
 
@@ -93,7 +93,7 @@ export function selectBestEvidencePages(pages) {
 export async function startBrowser({headless=process.env.HEADLESS!=='false',stagehandFactory=null}={}) {
   const Stagehand = stagehandFactory?null:(await import('@browserbasehq/stagehand')).Stagehand;
   const executablePath=process.env.CHROME_PATH?.trim();
-  const options={env:'LOCAL',model:'groq/'+(process.env.GROQ_MODEL||'openai/gpt-oss-20b'),verbose:0,selfHeal:true,
+  const options={env:'LOCAL',model:{modelName:'openai/'+(process.env.OPENAI_MODEL||'gpt-4.1-mini'),apiKey:process.env.OPENAI_API_KEY},verbose:0,selfHeal:true,
     localBrowserLaunchOptions:{headless,...(executablePath?{executablePath}:{})}};
   const stagehand=stagehandFactory?await stagehandFactory(options):new Stagehand(options);
   await stagehand.init();
@@ -129,7 +129,7 @@ export async function browseCompany(browser,company,{robots,logger=console,maxPa
   let agentExtraction=null;let stagehandError=null;
   // Stagehand is used for semantic extraction from the LIVE rendered page,
   // not merely a pre-downloaded HTML string.
-  if(stagehandAI && process.env.GROQ_API_KEY){
+  if(stagehandAI && process.env.OPENAI_API_KEY){
     try{
       const p=pages[0];
       await browser.page.goto(p.url,{waitUntil:'domcontentloaded',timeout:30000});
@@ -141,13 +141,18 @@ export async function browseCompany(browser,company,{robots,logger=console,maxPa
   const berlinMatch=info.page_text.match(/\b1[0-4]\d{3}\s+Berlin\b/i);
   const activityMatch=/Hausverwaltung|WEG[ -]?Verwaltung|Mietverwaltung|Immobilienverwaltung|Wohnungsverwaltung|Property Management/i.test(info.page_text);
   const siteQualification=activityMatch?'POTENTIAL_MANAGEMENT_SITE':'ACTIVITY_NOT_CONFIRMED';
-  return {...company,email,phone:company.phone||info.phones[0]||null,
+  const candidateName=clean(company.name);
+  const titleName=clean(first.title).split(/\s[|–—]\s|\s-\s/)[0];
+  const suggestedName=/^(Kontakt|Contact|Impressum|Über uns|Ueber uns|Home|Startseite)$/i.test(candidateName)
+    ? (!/^(Kontakt|Contact|Impressum|Home|Startseite)$/i.test(titleName) && titleName ? titleName : new URL(first.url).hostname.replace(/^www\./,''))
+    : candidateName;
+  return {...company,name:suggestedName,email,phone:company.phone||info.phones[0]||null,
     page_text:info.page_text,source_pages:info.source_pages,scrape_status:'OK',
     berlin_presence:company.berlin_presence===true?true:berlinMatch?true:null,
     berlin_evidence:berlinMatch?.[0]||null,site_qualification:siteQualification,
     stagehand_ai:agentExtraction,stagehand_error:stagehandError,documents_visited:pages.length};
 }
-export async function browseDirectory(browser,url,{robots,maxPages=2,logger=console,delayMs=900}={}){
+export async function browseDirectory(browser,url,{robots,maxPages=2,logger=console,delayMs=900,stagehandAI=false}={}){
   const queue=[url],visited=new Set(),candidates=[];
   while(queue.length && visited.size<maxPages){
     const next=queue.shift();if(visited.has(next))continue;visited.add(next);
@@ -156,7 +161,7 @@ export async function browseDirectory(browser,url,{robots,maxPages=2,logger=cons
     candidates.push(...extractDirectoryLinks(p.links,p.url,40));
     for(const n of detectPaginationLinks(p.links,p.url,2))if(!visited.has(n))queue.push(n);
     // Complex JS pagination: AI can observe and act on Next buttons if no URL exists.
-    if(!queue.length && process.env.GROQ_API_KEY && visited.size<maxPages){
+    if(!queue.length && stagehandAI && process.env.OPENAI_API_KEY && visited.size<maxPages){
       try{
         const actions=await browser.stagehand.observe('Find an enabled Next page or Weiter button for more company listings, not an ad, login or cookie dialog.');
         const nextAction=actions?.find(x=>/next|weiter|nächste|pagination|seite/i.test(x.description||''));
