@@ -1,7 +1,7 @@
 /**
  * Real browser module. Unlike the earlier lightweight version, this agent
  * opens pages with Stagehand/Chromium; it uses Stagehand.observe/extract/act.
- * OpenAI handles structured extraction; Stagehand handles live Chromium browsing.
+ * Groq handles compact JSON extraction; Stagehand handles live Chromium browsing.
  */
 import { clean, normalizeUrl, sleep } from './utils.js';
 
@@ -93,7 +93,7 @@ export function selectBestEvidencePages(pages) {
 export async function startBrowser({headless=process.env.HEADLESS!=='false',stagehandFactory=null}={}) {
   const Stagehand = stagehandFactory?null:(await import('@browserbasehq/stagehand')).Stagehand;
   const executablePath=process.env.CHROME_PATH?.trim();
-  const options={env:'LOCAL',model:{modelName:'openai/'+(process.env.OPENAI_MODEL||'gpt-4.1-mini'),apiKey:process.env.OPENAI_API_KEY},verbose:0,selfHeal:true,
+  const options={env:'LOCAL',model:'groq/'+(process.env.GROQ_MODEL||'openai/gpt-oss-20b'),verbose:0,selfHeal:true,
     localBrowserLaunchOptions:{headless,...(executablePath?{executablePath}:{})}};
   const stagehand=stagehandFactory?await stagehandFactory(options):new Stagehand(options);
   await stagehand.init();
@@ -129,7 +129,7 @@ export async function browseCompany(browser,company,{robots,logger=console,maxPa
   let agentExtraction=null;let stagehandError=null;
   // Stagehand is used for semantic extraction from the LIVE rendered page,
   // not merely a pre-downloaded HTML string.
-  if(stagehandAI && process.env.OPENAI_API_KEY){
+  if(stagehandAI && process.env.GROQ_API_KEY){
     try{
       const p=pages[0];
       await browser.page.goto(p.url,{waitUntil:'domcontentloaded',timeout:30000});
@@ -161,7 +161,7 @@ export async function browseDirectory(browser,url,{robots,maxPages=2,logger=cons
     candidates.push(...extractDirectoryLinks(p.links,p.url,40));
     for(const n of detectPaginationLinks(p.links,p.url,2))if(!visited.has(n))queue.push(n);
     // Complex JS pagination: AI can observe and act on Next buttons if no URL exists.
-    if(!queue.length && stagehandAI && process.env.OPENAI_API_KEY && visited.size<maxPages){
+    if(!queue.length && stagehandAI && process.env.GROQ_API_KEY && visited.size<maxPages){
       try{
         const actions=await browser.stagehand.observe('Find an enabled Next page or Weiter button for more company listings, not an ad, login or cookie dialog.');
         const nextAction=actions?.find(x=>/next|weiter|nächste|pagination|seite/i.test(x.description||''));

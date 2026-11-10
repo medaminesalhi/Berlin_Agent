@@ -6,7 +6,7 @@ import {loadEnv, normalizeUrl, readSites, sleep} from './utils.js';
 import {discoverBerlin} from './discovery.js';
 import {discoverSearxng} from './searxng.js';
 import {deduplicate,scoreLead} from './scoring.js';
-import {queryOpenAI} from './openai.js';
+import {queryGroq} from './groq.js';
 import {exportResults} from './export.js';
 import {writeReport} from './report.js';
 import {RobotsPolicy} from './robots.js';
@@ -65,11 +65,42 @@ function recover(items){
   return result;
 }
 
+
+async function enrichCheckpoint() {
+  const file=path.join(opts.output,'checkpoint_latest.json');
+  if(!fs.existsSync(file))throw Error('Aucun checkpoint. Lance dabord un scraping avec --no-ai.');
+  const items=JSON.parse(fs.readFileSync(file,'utf8')).items||[];
+  let attempts=0,ok=0;
+  console.log(`Enrichissement Groq : ${items.length} lignes chargees depuis ${file}`);
+  for(let i=0;i<items.length && attempts<opts.maxAiCalls;i++){
+    const row=items[i];
+    if(row.scrape_status!=='OK'||!row.page_text?.trim())continue;
+    if(['EVIDENCE_CHECKED','NEEDS_REVIEW'].includes(row.ai_validation))continue;
+    console.log(`[Groq ${attempts+1}/${opts.maxAiCalls}] ${row.name} (${row.website})`);
+    items[i]=await queryGroq(row);
+    attempts++;
+    if(items[i].ai_validation!=='FAILED')ok++;
+    console.log(` -> ${items[i].ai_validation}`);
+    saveCheckpoint(items);
+  }
+  const final=deduplicate(items).map(scoreLead).sort((a,b)=>b.score_min-a.score_min);
+  saveCheckpoint(final);
+  const files=exportResults(final,String(opts.output),'enrich');
+  const metadata={completed_at:new Date().toISOString(),mode:'enrich',records:final.length,groq_attempted:attempts,groq_succeeded:ok,
+    browsed:final.filter(x=>x.scrape_status==='OK').length,errors:final.filter(x=>x.error||x.ai_error).length,options:opts};
+  fs.writeFileSync(path.join(opts.output,'run_summary.json'),JSON.stringify(metadata,null,2));
+  writeReport(final,{folder:opts.output,metadata});
+  console.log(`\nTERMINE : ${attempts} analyses Groq, ${ok} reussies`);
+  console.log('CSV :',files.csvFile,'\nJSON :',files.jsonFile);
+  return {items:final,files,metadata};
+}
+
 export async function run(){
-  console.log('\nHEIDI SYSTEMS | STAGEHAND + OPENAI | BERLIN');
-  console.log(`Mode: ${opts.mode} | Sites max: ${opts.limit} | OpenAI: ${opts.ai?'OUI':'NON'} | Extraction Stagehand en plus: ${opts.stagehandAI?'OUI':'NON'}`);
-  if(opts.ai&&!process.env.OPENAI_API_KEY)throw Error('OPENAI_API_KEY manquante dans .env. Sinon utilise --no-ai.');
-  if(opts.stagehandAI&&!process.env.OPENAI_API_KEY)throw Error('Stagehand AI exige OPENAI_API_KEY.');
+  console.log('\nHEIDI SYSTEMS | STAGEHAND + GROQ OPTIMISE | BERLIN');
+  console.log(`Mode: ${opts.mode} | Sites max: ${opts.limit} | Groq: ${opts.ai?'OUI':'NON'} | Extraction Stagehand en plus: ${opts.stagehandAI?'OUI':'NON'}`);
+  if(opts.ai&&!process.env.GROQ_API_KEY)throw Error('GROQ_API_KEY manquante dans .env. Sinon utilise --no-ai.');
+  if(opts.stagehandAI&&!process.env.GROQ_API_KEY)throw Error('Stagehand AI exige GROQ_API_KEY.');
+  if(opts.mode==='enrich')return enrichCheckpoint();
   let leads=[];
   if(opts.mode==='sites'){
     leads=readSites(String(opts.input)).map(mergeCandidate);
@@ -141,9 +172,9 @@ export async function run(){
         try{
           let row=await browseCompany(browser,x,{robots,maxPages:opts.maxPages,stagehandAI:opts.stagehandAI,delayMs:opts.delay,logger});
           if(opts.ai && row.scrape_status==='OK' && analyzed<opts.maxAiCalls){
-            row=await queryOpenAI(row);
+            row=await queryGroq(row);
             analyzed++;
-            await sleep(1200);
+            
           }else if(opts.ai && analyzed>=opts.maxAiCalls){row.ai_validation='SKIPPED_AI_BUDGET';}
           leads[i]=row;
           console.log(` -> ${row.scrape_status} | pages=${row.documents_visited||0} | IA=${row.ai_validation||'NON'}`);
@@ -159,7 +190,7 @@ export async function run(){
   const files=exportResults(final,String(opts.output),String(opts.mode));
   const metadata={completed_at:new Date().toISOString(),mode:opts.mode,records:final.length,
     discovery_count:discoveryCount,browsed:final.filter(x=>x.scrape_status==='OK').length,
-    openai_analyzed:final.filter(x=>x.ai_validation==='EVIDENCE_CHECKED').length,
+    groq_analyzed:final.filter(x=>['EVIDENCE_CHECKED','NEEDS_REVIEW'].includes(x.ai_validation)).length,
     errors:final.filter(x=>x.error||x.ai_error).length,options:opts};
   fs.writeFileSync(path.join(opts.output,'run_summary.json'),JSON.stringify(metadata,null,2));
   writeReport(final,{folder:opts.output,metadata});
